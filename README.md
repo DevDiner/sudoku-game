@@ -45,7 +45,7 @@ If you want to test the "Get Hint" feature locally:
 2.  **Modify the Code:**
     -   Open the `index.js` file.
     -   Find the line that says: `const apiKey = import.meta.env.VITE_API_KEY;`
-    -   Replace it with your actual key: `const apiKey = 'YOUR_GEMINI_API_KEY_HERE';`
+    -   Replace it with your actual key: `const apiKey = 'GEMINI_API_KEY';`
 3.  **Run the game:** Open `index.html` in your browser. The hint feature should now work.
 
 **IMPORTANT:** Do not commit your API key to a public repository like GitHub.
