@@ -1,0 +1,5 @@
+{
+  "name": "Sudoku Zen",
+  "description": "A modern and sleek Sudoku game with multiple difficulty levels, user leaderboards, and AI-powered hints. Challenge your logic and compete for the best times.",
+  "requestFramePermissions": []
+}
