@@ -41,7 +41,7 @@ You can run the game directly from your local machine.
 
 If you want to test the "Get Hint" feature locally:
 
-1.  **Get an API Key:** Obtain a Google Gemini API Key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+1.  **Get an API Key:** Obtain a Google Gemini API Key
 2.  **Modify the Code:**
     -   Open the `index.js` file.
     -   Find the line that says: `const apiKey = import.meta.env.VITE_API_KEY;`
