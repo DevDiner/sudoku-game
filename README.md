@@ -9,7 +9,7 @@ Sudoku Zen is a classic 9x9 Sudoku game designed for the modern web. Built entir
 - **Local Leaderboard:** Your best times are saved to your browser's local storage. Compete against yourself to get faster!
 - **User Profiles:** Enter a username to personalize your high scores.
 - **Solution Validation:** Instantly check your progress and see if you've made any mistakes.
-- **AI-Powered Hints:** Stuck on a tough spot? Get a hint from the Google Gemini API to fill in a correct number.
+- [Optional Enhanced Feature] **AI-Powered Hints:** Stuck on a tough spot? Get a hint from the Google Gemini API to fill in a correct number.
 - **Responsive Design:** Fully playable on both desktop (keyboard/mouse) and mobile devices (touch/on-screen keypad).
 
 ## How to Play
