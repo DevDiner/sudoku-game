@@ -37,7 +37,7 @@ You can run the game directly from your local machine.
     ```
 2.  **Open the File:** Simply open the `index.html` file in any modern web browser. The game is fully playable without a web server.
 
-### Enabling Hints Locally (for Development)
+### Enabling Hints Locally (for Development) *[Optional Enhanced Features]
 
 If you want to test the "Get Hint" feature locally:
 
