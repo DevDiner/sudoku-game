@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,6 +34,29 @@
 </head>
 <body class="font-sans">
 
+    <!-- Loading Overlay: shows immediately, hidden by JS. Handles error messaging. -->
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center text-cyan-400 text-2xl font-bold flex-col gap-4">
+        <div class="animate-pulse">Loading Sudoku Zen...</div>
+        <div id="loading-error" class="hidden text-red-400 text-base font-normal max-w-md text-center px-4">
+            <p class="mb-2">Failed to load game scripts.</p>
+            <ul class="text-sm text-slate-400 list-disc text-left pl-6 space-y-1">
+                <li>Ensure you are running this on a <strong>Local Server</strong> (e.g., VS Code Live Server, python -m http.server), NOT by double-clicking the file.</li>
+                <li>Ensure <code>sudokuLogic.js</code> exists in the same folder.</li>
+                <li>Check your internet connection (required for AI library).</li>
+            </ul>
+        </div>
+    </div>
+    <script>
+        // Fallback safety: If JS doesn't remove this overlay in 2 seconds, show the error message.
+        setTimeout(() => {
+            const overlay = document.getElementById('loading-overlay');
+            const errorMsg = document.getElementById('loading-error');
+            if (overlay) {
+                errorMsg.classList.remove('hidden');
+            }
+        }, 2000);
+    </script>
+
     <div id="root" class="bg-slate-900 text-slate-100 flex items-center justify-center min-h-full w-full p-4">
         <div id="app-container" class="w-full max-w-4xl">
             <!-- Header -->
@@ -48,7 +70,7 @@
                 <div class="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-8">
                     <!-- Left Panel: Board -->
                     <div class="flex flex-col items-center">
-                        <div id="controls" class="w-full flex flex-wrap items-center justify-center gap-2 mb-4 p-2 bg-slate-800 rounded-lg">
+                        <div id="controls" class="w-full flex flex-wrap items-center justify-center gap-2 mb-4 p-2 bg-slate-800 rounded-lg relative z-10">
                             <div class="relative">
                                  <button id="new-game-dropdown-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-md text-white font-bold transition-colors w-full sm:w-auto flex items-center justify-center gap-2">
                                      New Game
@@ -56,10 +78,10 @@
                                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                      </svg>
                                  </button>
-                                 <div id="difficulty-selector" class="hidden absolute z-20 top-full mt-2 left-0 w-full bg-slate-700 p-2 rounded-lg shadow-xl flex flex-col gap-1">
-                                    <button data-difficulty="easy" class="difficulty-btn capitalize w-full text-left px-3 py-2 rounded-md text-sm transition-colors hover:bg-slate-600">Easy</button>
-                                    <button data-difficulty="medium" class="difficulty-btn capitalize w-full text-left px-3 py-2 rounded-md text-sm transition-colors hover:bg-slate-600">Medium</button>
-                                    <button data-difficulty="hard" class="difficulty-btn capitalize w-full text-left px-3 py-2 rounded-md text-sm transition-colors hover:bg-slate-600">Hard</button>
+                                 <div id="difficulty-selector" class="hidden absolute z-50 top-full mt-2 left-0 w-48 bg-slate-700 p-2 rounded-lg shadow-xl flex flex-col gap-1 border border-slate-600">
+                                    <button data-difficulty="easy" class="difficulty-btn capitalize w-full text-left px-3 py-2 rounded-md text-sm text-white hover:bg-slate-600 transition-colors">Easy</button>
+                                    <button data-difficulty="medium" class="difficulty-btn capitalize w-full text-left px-3 py-2 rounded-md text-sm text-white hover:bg-slate-600 transition-colors">Medium</button>
+                                    <button data-difficulty="hard" class="difficulty-btn capitalize w-full text-left px-3 py-2 rounded-md text-sm text-white hover:bg-slate-600 transition-colors">Hard</button>
                                  </div>
                             </div>
                             <button id="validate-btn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors">Validate</button>
@@ -75,7 +97,7 @@
 
                         <p id="timer" class="text-3xl font-mono text-slate-300 tracking-widest mb-4">00:00</p>
                         
-                        <div id="canvas-container" class="w-full max-w-lg aspect-square bg-slate-800 border-2 border-cyan-500 rounded-lg overflow-hidden shadow-2xl">
+                        <div id="canvas-container" class="w-full max-w-lg aspect-square bg-slate-800 border-2 border-cyan-500 rounded-lg overflow-hidden shadow-2xl relative z-0">
                             <canvas id="sudoku-canvas"></canvas>
                         </div>
                     </div>
@@ -98,7 +120,7 @@
                 </div>
 
                 <footer class="text-center text-slate-500 mt-8">
-                    <p>Welcome, <span id="username-display" class="font-bold text-slate-400"></span> 
+                    <p>Welcome, <span id="username-display" class="font-bold text-slate-400">Guest</span> 
                     <button id="change-user-btn" class="text-cyan-500 hover:text-cyan-400 text-sm ml-2 underline cursor-pointer">(Change)</button>
                     </p>
                 </footer>

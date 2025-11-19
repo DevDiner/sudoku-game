@@ -5,16 +5,19 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   // --- Gemini Hint Service ---
   let ai;
   try {
-    // Safely check for VITE_API_KEY. import.meta.env is undefined in standard browsers.
-    const apiKey =
-      import.meta.env && import.meta.env.VITE_API_KEY
-        ? import.meta.env.VITE_API_KEY
-        : null;
+    // Safely check for VITE_API_KEY.
+    // Use optional chaining or checks to prevent runtime errors in non-Vite environments.
+    const env =
+      typeof import.meta !== "undefined" && import.meta.env
+        ? import.meta.env
+        : {};
+    const apiKey = env.VITE_API_KEY;
+
     if (apiKey) {
       ai = new GoogleGenAI({ apiKey: apiKey });
     } else {
       console.warn(
-        "VITE_API_KEY environment variable not set. Hint feature will not work. See README.md for setup instructions."
+        "VITE_API_KEY environment variable not set. Hint feature will not work."
       );
     }
   } catch (e) {
@@ -120,6 +123,8 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   const numberPadBtns = document.querySelectorAll(".number-btn");
   const eraseBtn = document.getElementById("erase-btn");
 
+  const loadingOverlay = document.getElementById("loading-overlay");
+
   // --- Game State ---
   let board, solution, userInput;
   let selectedCell = null;
@@ -161,6 +166,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   }
 
   function drawGrid() {
+    if (!cellSize || !canvasSize) return;
     for (let i = 0; i <= 9; i++) {
       ctx.beginPath();
       const isThick = i % 3 === 0;
@@ -179,7 +185,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   }
 
   function drawNumbers() {
-    if (!board) return;
+    if (!board || !cellSize) return;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const fontSize = cellSize * 0.6;
@@ -202,7 +208,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   }
 
   function drawSelection() {
-    if (!selectedCell) return;
+    if (!selectedCell || !cellSize) return;
     const { row, col } = selectedCell;
 
     ctx.fillStyle = "rgba(71, 85, 105, 0.5)";
@@ -232,7 +238,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   }
 
   function redrawCanvas() {
-    if (!ctx) return;
+    if (!ctx || !canvasSize) return;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -674,5 +680,11 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   });
 
   // --- Initialization ---
+  // Remove loading overlay if we got this far
+  if (loadingOverlay) loadingOverlay.remove();
+
+  // Force initial resize to set up canvas context even if game hasn't started
+  resizeCanvas();
+
   loadUser();
 })();
