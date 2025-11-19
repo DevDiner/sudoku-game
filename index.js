@@ -1,149 +1,80 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { generateSudoku, SIZE } from "./sudokuLogic.js";
 
 (function () {
-  // Sudoku generation & validation logic
-  const SIZE = 9;
-  const BOX_SIZE = 3;
-
-  function solveSudoku(board) {
-    for (let row = 0; row < SIZE; row++) {
-      for (let col = 0; col < SIZE; col++) {
-        if (board[row][col] === null) {
-          const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-          shuffle(numbers);
-          for (const num of numbers) {
-            if (isValidPlacement(board, row, col, num)) {
-              board[row][col] = num;
-              if (solveSudoku(board)) return true;
-              board[row][col] = null;
-            }
-          }
-          return false;
-        }
-      }
+  // Gemini Hint Service
+  let ai;
+  try {
+    const apiKey = import.meta.env.VITE_API_KEY;
+    if (apiKey) {
+      ai = new GoogleGenAI({ apiKey: apiKey });
+    } else {
+      console.warn(
+        "VITE_API_KEY environment variable not set. Hint feature will not work. See README.md for setup instructions."
+      );
     }
-    return true;
-  }
-
-  function isValidPlacement(board, row, col, num) {
-    for (let i = 0; i < SIZE; i++) {
-      if (board[row][i] === num || board[i][col] === num) return false;
-    }
-    const startRow = Math.floor(row / BOX_SIZE) * BOX_SIZE;
-    const startCol = Math.floor(col / BOX_SIZE) * BOX_SIZE;
-
-    for (let i = 0; i < BOX_SIZE; i++) {
-      for (let j = 0; j < BOX_SIZE; j++) {
-        if (board[startRow + i][startCol + j] === num) return false;
-      }
-    }
-    return true;
-  }
-
-  function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-  }
-
-  function generateSudoku(difficulty) {
-    const solution = Array(SIZE)
-      .fill(null)
-      .map(() => Array(SIZE).fill(null));
-    solveSudoku(solution);
-    const puzzle = solution.map((row) => [...row]);
-
-    let removals = { easy: 40, medium: 50, hard: 60 }[difficulty] ?? 50;
-
-    const cells = [];
-    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) cells.push([r, c]);
-    shuffle(cells);
-
-    for (const [r, c] of cells) {
-      if (removals <= 0) break;
-      if (puzzle[r][c] !== null) {
-        puzzle[r][c] = null;
-        removals--;
-      }
-    }
-
-    return { puzzle, solution };
-  }
-
-  // Gemini hint service
-  let ai = null;
-  const apiKey = window.GEMINI_API_KEY || null;
-
-  if (apiKey && apiKey.trim() !== "") {
-    try {
-      ai = new GoogleGenAI({ apiKey });
-    } catch (e) {
-      console.error("Gemini init failed:", e);
-      ai = null;
-    }
+  } catch (e) {
+    console.error("Error initializing GoogleGenAI", e);
   }
 
   async function getHint(board) {
     if (!ai) {
       showAlert(
-        "Hint Feature Disabled",
-        "No Gemini API key found. Add your key in config.js to enable hints."
+        "API Not Initialized",
+        "The Gemini API is not configured, so the hint feature is disabled. Please see the README file for setup instructions."
       );
       return null;
     }
-
-    const empty = [];
+    const emptyCells = [];
     for (let r = 0; r < 9; r++) {
       for (let c = 0; c < 9; c++) {
-        if (board[r][c] === null) empty.push({ row: r, col: c });
+        if (board[r][c] === null) {
+          emptyCells.push({ row: r, col: c });
+        }
       }
     }
 
-    if (empty.length === 0) return null;
+    if (emptyCells.length === 0) return null;
 
-    const { row, col } = empty[Math.floor(Math.random() * empty.length)];
-
+    const targetCell =
+      emptyCells[Math.floor(Math.random() * emptyCells.length)];
+    const { row, col } = targetCell;
     const boardString = board
       .map((r) => r.map((c) => (c === null ? 0 : c)).join(","))
-      .join("\n");
+      .join("\\n");
 
     try {
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: `Sudoku board:\n${boardString}\n\nReturn ONLY the correct number (1-9) for row ${row}, column ${col}.`,
+        contents: `Sudoku board:\n${boardString}\n\nProvide the single correct digit for the cell at row index ${row}, column index ${col}.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              value: { type: Type.INTEGER },
+              value: {
+                type: Type.INTEGER,
+                description: "The correct number (1-9) for the specified cell.",
+              },
             },
           },
         },
       });
 
-      let parsed;
-      try {
-        parsed = JSON.parse(response.text.trim());
-      } catch (err) {
-        console.error("JSON parse failed:", err, response.text);
-        return null;
-      }
+      const result = JSON.parse(response.text.trim());
+      const value = result.value;
 
-      if (parsed && parsed.value >= 1 && parsed.value <= 9) {
-        return { row, col, value: parsed.value };
+      if (typeof value === "number" && value >= 1 && value <= 9) {
+        return { row, col, value };
       }
-
       return null;
-    } catch (err) {
-      console.error("Gemini error:", err);
-      showAlert("Hint Error", "Gemini could not provide a hint.");
-      return null;
+    } catch (error) {
+      console.error("Error fetching hint from Gemini API:", error);
+      throw new Error("Failed to get hint from Gemini API.");
     }
   }
 
-  // DOM elements
+  // DOM Elements
   const canvas = document.getElementById("sudoku-canvas");
   const ctx = canvas.getContext("2d");
   const canvasContainer = document.getElementById("canvas-container");
@@ -158,6 +89,7 @@ import { GoogleGenAI, Type } from "@google/genai";
   const difficultyBtns = document.querySelectorAll(".difficulty-btn");
   const validateBtn = document.getElementById("validate-btn");
   const resetBtn = document.getElementById("reset-btn");
+  const pauseBtn = document.getElementById("pause-btn");
   const hintBtn = document.getElementById("hint-btn");
   const toggleLeaderboardBtn = document.getElementById(
     "toggle-leaderboard-btn"
@@ -173,8 +105,9 @@ import { GoogleGenAI, Type } from "@google/genai";
   const alertModal = document.getElementById("alert-modal");
   const alertTitle = document.getElementById("alert-title");
   const alertMessage = document.getElementById("alert-message");
+  const alertCloseBtn = document.getElementById("alert-close-btn");
 
-  // Game state
+  // Game State
   let board, solution, userInput;
   let selectedCell = null;
   let difficulty = "medium";
@@ -183,16 +116,18 @@ import { GoogleGenAI, Type } from "@google/genai";
   let username = null;
   let scores = [];
   let cellSize, canvasSize;
+  let isPaused = false;
 
-  // Canvas rendering
+  //  Canvas Drawing
   function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
     const rect = canvasContainer.getBoundingClientRect();
 
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
-    canvas.style.width = rect.width + "px";
-    canvas.style.height = rect.height + "px";
+
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
 
     ctx.scale(dpr, dpr);
 
@@ -205,37 +140,40 @@ import { GoogleGenAI, Type } from "@google/genai";
   function drawGrid() {
     for (let i = 0; i <= 9; i++) {
       ctx.beginPath();
-      const thick = i % 3 === 0;
-      ctx.lineWidth = thick ? 4 : 2;
-      ctx.strokeStyle = thick ? "#e2e8f0" : "#64748b";
+      const isThick = i % 3 === 0;
+      // Using even more visible colors and thicker lines for better clarity
+      ctx.lineWidth = isThick ? 4 : 2;
+      ctx.strokeStyle = isThick ? "#e2e8f0" : "#64748b"; // slate-200 for thick, slate-500 for thin
 
       const pos = Math.round(i * cellSize);
+
       ctx.moveTo(pos, 0);
       ctx.lineTo(pos, canvasSize);
       ctx.moveTo(0, pos);
       ctx.lineTo(canvasSize, pos);
+
       ctx.stroke();
     }
   }
 
   function drawNumbers() {
     if (!board) return;
-
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `bold ${cellSize * 0.6}px sans-serif`;
+    const fontSize = cellSize * 0.6;
+    ctx.font = `bold ${fontSize}px sans-serif`;
 
-    for (let r = 0; r < 9; r++) {
-      for (let c = 0; c < 9; c++) {
-        const x = c * cellSize + cellSize / 2;
-        const y = r * cellSize + cellSize / 2;
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        const x = col * cellSize + cellSize / 2;
+        const y = row * cellSize + cellSize / 2;
 
-        if (userInput[r][c] !== null) {
-          ctx.fillStyle = userInput[r][c].isError ? "#ef4444" : "#f1f5f9";
-          ctx.fillText(userInput[r][c].value, x, y);
-        } else if (board[r][c] !== null) {
-          ctx.fillStyle = "#22d3ee";
-          ctx.fillText(board[r][c], x, y);
+        if (userInput[row][col] !== null) {
+          ctx.fillStyle = userInput[row][col].isError ? "#ef4444" : "#f1f5f9"; // red-500 or slate-100
+          ctx.fillText(userInput[row][col].value, x, y);
+        } else if (board[row][col] !== null) {
+          ctx.fillStyle = "#22d3ee"; // cyan-400
+          ctx.fillText(board[row][col], x, y);
         }
       }
     }
@@ -243,68 +181,79 @@ import { GoogleGenAI, Type } from "@google/genai";
 
   function drawSelection() {
     if (!selectedCell) return;
-
     const { row, col } = selectedCell;
 
-    ctx.fillStyle = "rgba(71,85,105,0.5)";
+    ctx.fillStyle = "rgba(71, 85, 105, 0.5)"; // slate-600 with opacity
     for (let i = 0; i < 9; i++) {
       ctx.fillRect(i * cellSize, row * cellSize, cellSize, cellSize);
       ctx.fillRect(col * cellSize, i * cellSize, cellSize, cellSize);
     }
-
-    const sr = Math.floor(row / 3) * 3;
-    const sc = Math.floor(col / 3) * 3;
-
+    const startRow = Math.floor(row / 3) * 3;
+    const startCol = Math.floor(col / 3) * 3;
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
         ctx.fillRect(
-          (sc + c) * cellSize,
-          (sr + r) * cellSize,
+          (startCol + c) * cellSize,
+          (startRow + r) * cellSize,
           cellSize,
           cellSize
         );
       }
     }
 
-    ctx.fillStyle = "rgba(100,116,139,0.7)";
+    ctx.fillStyle = "rgba(100, 116, 139, 0.7)"; // slate-500 with opacity
     ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
 
-    ctx.strokeStyle = "#22d3ee";
+    ctx.strokeStyle = "#22d3ee"; // cyan-400
     ctx.lineWidth = 3;
     ctx.strokeRect(col * cellSize, row * cellSize, cellSize, cellSize);
   }
 
   function redrawCanvas() {
+    if (!ctx) return;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 
     drawGrid();
-    drawSelection();
-    drawNumbers();
+
+    if (isPaused) {
+      ctx.fillStyle = "rgba(15, 23, 42, 0.9)"; // slate-900 with high opacity
+      ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+      ctx.fillStyle = "#22d3ee"; // cyan-400
+      ctx.font = "bold 40px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("PAUSED", canvasSize / 2, canvasSize / 2);
+    } else {
+      drawSelection();
+      drawNumbers();
+    }
   }
 
-  // Game logic
+  // Game Logic
   function startGame(newDifficulty) {
     difficulty = newDifficulty;
     updateDifficultyButtonsUI();
-
     ({ puzzle: board, solution } = generateSudoku(difficulty));
     userInput = Array(9)
       .fill(null)
       .map(() => Array(9).fill(null));
     selectedCell = null;
-
     time = 0;
+    isPaused = false;
+    pauseBtn.textContent = "Pause";
     startTimer();
     resizeCanvas();
   }
 
   function handleInput(value) {
-    if (!selectedCell || board[selectedCell.row][selectedCell.col] !== null)
+    if (isPaused) return;
+    if (!selectedCell || board[selectedCell.row][selectedCell.col] !== null) {
       return;
-
+    }
     const { row, col } = selectedCell;
     const num = parseInt(value, 10);
 
@@ -319,6 +268,7 @@ import { GoogleGenAI, Type } from "@google/genai";
   }
 
   function eraseInput() {
+    if (isPaused) return;
     if (selectedCell && board[selectedCell.row][selectedCell.col] === null) {
       userInput[selectedCell.row][selectedCell.col] = null;
       redrawCanvas();
@@ -327,31 +277,35 @@ import { GoogleGenAI, Type } from "@google/genai";
 
   function resetGame() {
     if (!board) return;
-
     userInput = Array(9)
       .fill(null)
       .map(() => Array(9).fill(null));
     selectedCell = null;
-
     time = 0;
+    isPaused = false;
+    pauseBtn.textContent = "Pause";
     startTimer();
     redrawCanvas();
   }
 
   function checkWinCondition() {
-    let full = true;
-
+    let isFull = true;
     for (let r = 0; r < 9; r++) {
       for (let c = 0; c < 9; c++) {
         const userVal = userInput[r][c]?.value;
         const boardVal = board[r][c];
-
-        if (userVal === undefined && boardVal === null) full = false;
-        if (userVal !== undefined && userVal !== solution[r][c]) return;
+        if (userVal === undefined && boardVal === null) {
+          isFull = false;
+          break;
+        }
+        if (userVal !== undefined && userVal !== solution[r][c]) {
+          return;
+        }
       }
+      if (!isFull) break;
     }
 
-    if (full) {
+    if (isFull) {
       stopTimer();
       addScore(time, difficulty);
       winDifficultyEl.textContent = difficulty;
@@ -360,17 +314,32 @@ import { GoogleGenAI, Type } from "@google/genai";
     }
   }
 
+  function togglePause() {
+    if (isPaused) {
+      isPaused = false;
+      pauseBtn.textContent = "Pause";
+      startTimer();
+      redrawCanvas();
+    } else {
+      isPaused = true;
+      pauseBtn.textContent = "Resume";
+      stopTimer();
+      redrawCanvas();
+    }
+  }
+
   // Timer
-  function formatTime(sec) {
-    return `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(
-      sec % 60
-    ).padStart(2, "0")}`;
+  function formatTime(seconds) {
+    const min = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const sec = (seconds % 60).toString().padStart(2, "0");
+    return `${min}:${sec}`;
   }
 
   function startTimer() {
     stopTimer();
     timerEl.textContent = formatTime(time);
-
     timerInterval = setInterval(() => {
       time++;
       timerEl.textContent = formatTime(time);
@@ -381,25 +350,25 @@ import { GoogleGenAI, Type } from "@google/genai";
     clearInterval(timerInterval);
   }
 
-  // Alerts
-  function showAlert(title, msg) {
+  // Local Storage & UI
+  function showAlert(title, message) {
     alertTitle.textContent = title;
-    alertMessage.textContent = msg;
+    alertMessage.textContent = message;
     alertModal.classList.add("active");
   }
 
-  // Difficulty button UI
   function updateDifficultyButtonsUI() {
     difficultyBtns.forEach((b) => {
       if (b.dataset.difficulty === difficulty) {
         b.classList.add("bg-cyan-600", "text-white");
+        b.classList.remove("hover:bg-slate-600");
       } else {
         b.classList.remove("bg-cyan-600", "text-white");
+        b.classList.add("hover:bg-slate-600");
       }
     });
   }
 
-  // User handling
   function loadUser() {
     username = localStorage.getItem("sudokuUsername");
     if (username) {
@@ -418,74 +387,76 @@ import { GoogleGenAI, Type } from "@google/genai";
     loadUser();
   }
 
-  // Score handling
   function loadScores() {
-    const raw = localStorage.getItem("sudokuLeaderboard");
-    scores = raw ? JSON.parse(raw) : [];
+    const storedScores = localStorage.getItem("sudokuLeaderboard");
+    scores = storedScores ? JSON.parse(storedScores) : [];
   }
 
   function addScore(time, difficulty) {
     if (!username) return;
-
-    scores.push({
+    const newScore = {
       username,
       time,
       difficulty,
       date: new Date().toISOString(),
-    });
-
+    };
+    scores.push(newScore);
     scores.sort((a, b) => a.time - b.time);
     localStorage.setItem("sudokuLeaderboard", JSON.stringify(scores));
   }
 
   function renderLeaderboard() {
-    const box = document.getElementById("leaderboard-scores");
-
+    const container = document.getElementById("leaderboard-scores");
     if (scores.length === 0) {
-      box.innerHTML = `<p class="text-center text-slate-400">No scores yet.</p>`;
+      container.innerHTML = `<p class="text-center text-slate-400">No scores yet. Complete a game to see your name here!</p>`;
       return;
     }
 
-    box.innerHTML = `
+    const rankColors = ["text-amber-400", "text-slate-300", "text-yellow-700"];
+    const tableHTML = `
             <table class="w-full text-left">
                 <thead>
-                    <tr class="border-b border-slate-600 text-slate-400">
-                        <th class="p-3">Rank</th>
-                        <th class="p-3">Username</th>
-                        <th class="p-3">Time</th>
-                        <th class="p-3">Difficulty</th>
-                    </tr>
+                  <tr class="border-b border-slate-600 text-slate-400">
+                    <th class="p-3">Rank</th><th class="p-3">Username</th><th class="p-3">Time</th><th class="p-3">Difficulty</th>
+                  </tr>
                 </thead>
                 <tbody>
-                    ${scores
-                      .slice(0, 10)
-                      .map(
-                        (s, i) => `
-                        <tr class="border-b border-slate-700">
-                            <td class="p-3 font-bold">#${i + 1}</td>
-                            <td class="p-3">${s.username}</td>
-                            <td class="p-3 font-mono">${formatTime(s.time)}</td>
-                            <td class="p-3 capitalize">${s.difficulty}</td>
-                        </tr>
-                    `
-                      )
-                      .join("")}
+                  ${scores
+                    .slice(0, 10)
+                    .map(
+                      (score, index) => `
+                    <tr class="border-b border-slate-700 ${
+                      rankColors[index] || "text-slate-400"
+                    }">
+                      <td class="p-3 font-bold">#${index + 1}</td>
+                      <td class="p-3">${score.username}</td>
+                      <td class="p-3 font-mono">${formatTime(score.time)}</td>
+                      <td class="p-3 capitalize">${score.difficulty}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
                 </tbody>
             </table>
         `;
+    container.innerHTML = tableHTML;
   }
 
-  // Event listeners
+  // Event Listeners
   function handleCanvasInteraction(e) {
     e.preventDefault();
+    if (isPaused) return;
+
     const rect = canvas.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
 
     const col = Math.floor(x / cellSize);
     const row = Math.floor(y / cellSize);
 
-    if (row >= 0 && row < 9 && col >= 0 && col < 9) {
+    if (row >= 0 && row < SIZE && col >= 0 && col < SIZE) {
       selectedCell = { row, col };
       redrawCanvas();
     }
@@ -499,15 +470,18 @@ import { GoogleGenAI, Type } from "@google/genai";
   });
 
   document.addEventListener("keydown", (e) => {
+    if (isPaused) return;
     if (!selectedCell) return;
-    if (/[1-9]/.test(e.key)) handleInput(e.key);
-    if (e.key === "Backspace" || e.key === "Delete") eraseInput();
+    if (e.key >= "1" && e.key <= "9") {
+      handleInput(e.key);
+    } else if (e.key === "Backspace" || e.key === "Delete") {
+      eraseInput();
+    }
   });
 
-  numberPadBtns.forEach((btn) =>
-    btn.addEventListener("click", () => handleInput(btn.textContent))
-  );
-
+  numberPadBtns.forEach((btn) => {
+    btn.addEventListener("click", () => handleInput(btn.textContent));
+  });
   eraseBtn.addEventListener("click", eraseInput);
 
   usernameInput.addEventListener("input", () => {
@@ -517,44 +491,48 @@ import { GoogleGenAI, Type } from "@google/genai";
   usernameForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const name = usernameInput.value.trim();
-    if (name) saveUser(name);
+    if (name) {
+      saveUser(name);
+    }
   });
 
   newGameBtn.addEventListener("click", (e) => {
     e.stopPropagation();
+    if (isPaused) return;
     difficultySelector.classList.toggle("hidden");
   });
-
   document.addEventListener("click", () =>
     difficultySelector.classList.add("hidden")
   );
 
-  difficultyBtns.forEach((btn) =>
+  difficultyBtns.forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      startGame(btn.dataset.difficulty);
+      const newDifficulty = btn.dataset.difficulty;
       difficultySelector.classList.add("hidden");
-    })
-  );
+      startGame(newDifficulty);
+    });
+  });
 
   validateBtn.addEventListener("click", () => {
+    if (isPaused) return;
     if (!solution) return;
-
     let hasError = false;
-
     for (let r = 0; r < 9; r++) {
       for (let c = 0; c < 9; c++) {
         const cell = userInput[r][c];
-        if (cell && cell.value !== solution[r][c]) {
-          cell.isError = true;
-          hasError = true;
+        if (cell) {
+          if (cell.value !== solution[r][c]) {
+            cell.isError = true;
+            hasError = true;
+          } else {
+            cell.isError = false;
+          }
         }
       }
     }
-
-    if (!hasError) showAlert("Validation Complete", "No errors found!");
+    if (!hasError) showAlert("Validation Complete", "No errors found so far!");
     redrawCanvas();
-
     setTimeout(() => {
       userInput.forEach((row) =>
         row.forEach((cell) => {
@@ -567,29 +545,37 @@ import { GoogleGenAI, Type } from "@google/genai";
 
   resetBtn.addEventListener("click", resetGame);
 
+  pauseBtn.addEventListener("click", togglePause);
+
   hintBtn.addEventListener("click", async () => {
+    if (isPaused) return;
     hintBtn.disabled = true;
     hintBtn.innerHTML = `
-            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-
-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.37 0 0 5.37 0 12h4z"></path>
-            </svg> Hinting...
-        `;
+            <svg class="animate-spin -ml-1 mr-1 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg> Hinting...`;
 
     try {
-      const state = board.map((r, ri) =>
-        r.map((c, ci) => userInput[ri][ci]?.value ?? c ?? null)
+      const currentBoardState = board.map((row, rIdx) =>
+        row.map((cell, cIdx) => userInput[rIdx][cIdx]?.value ?? cell ?? null)
       );
-
-      const hint = await getHint(state);
-
-      if (!hint) {
-        showAlert("Hint Unavailable", "Could not get a hint.");
-      } else {
+      const hint = await getHint(currentBoardState);
+      if (hint) {
         selectedCell = { row: hint.row, col: hint.col };
         handleInput(String(hint.value));
+      } else {
+        showAlert(
+          "Hint Unavailable",
+          "Could not get a hint for the board. It might be full or unsolvable."
+        );
       }
+    } catch (error) {
+      console.error("Error getting hint:", error);
+      showAlert(
+        "Hint Error",
+        "Could not fetch a hint. Please check your API key and try again."
+      );
     } finally {
       hintBtn.disabled = false;
       hintBtn.textContent = "Get Hint";
@@ -597,6 +583,10 @@ import { GoogleGenAI, Type } from "@google/genai";
   });
 
   toggleLeaderboardBtn.addEventListener("click", () => {
+    if (isPaused && gameView.classList.contains("hidden")) {
+      setTimeout(redrawCanvas, 0);
+    }
+
     gameView.classList.toggle("hidden");
     leaderboardView.classList.toggle("hidden");
 
@@ -605,6 +595,7 @@ import { GoogleGenAI, Type } from "@google/genai";
       toggleLeaderboardBtn.textContent = "Back to Game";
     } else {
       toggleLeaderboardBtn.textContent = "Leaderboard";
+      if (isPaused) redrawCanvas();
     }
   });
 
@@ -613,10 +604,10 @@ import { GoogleGenAI, Type } from "@google/genai";
     startGame(difficulty);
   });
 
-  document.getElementById("alert-close-btn").addEventListener("click", () => {
+  alertCloseBtn.addEventListener("click", () => {
     alertModal.classList.remove("active");
   });
 
-  // Initialize app
+  // Initialization
   loadUser();
 })();
