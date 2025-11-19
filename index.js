@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { generateSudoku, SIZE } from "./sudokuLogic.js";
 
 (function () {
-  // Gemini Hint Service
+  //  Gemini Hint Service
   let ai;
   try {
     const apiKey = import.meta.env.VITE_API_KEY;
@@ -74,16 +74,31 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     }
   }
 
-  // DOM Elements
+  //  DOM Elements
   const canvas = document.getElementById("sudoku-canvas");
   const ctx = canvas.getContext("2d");
   const canvasContainer = document.getElementById("canvas-container");
   const timerEl = document.getElementById("timer");
+
+  // Modals & Overlay Elements
   const usernameModal = document.getElementById("username-modal");
   const usernameForm = document.getElementById("username-form");
   const usernameInput = document.getElementById("username-input");
   const usernameSubmitBtn = document.getElementById("username-submit-btn");
   const usernameDisplay = document.getElementById("username-display");
+  const changeUserBtn = document.getElementById("change-user-btn");
+
+  const winModal = document.getElementById("win-modal");
+  const winTimeEl = document.getElementById("win-time");
+  const winDifficultyEl = document.getElementById("win-difficulty");
+  const playAgainBtn = document.getElementById("play-again-btn");
+
+  const alertModal = document.getElementById("alert-modal");
+  const alertTitle = document.getElementById("alert-title");
+  const alertMessage = document.getElementById("alert-message");
+  const alertCloseBtn = document.getElementById("alert-close-btn");
+
+  // Game Controls
   const newGameBtn = document.getElementById("new-game-dropdown-btn");
   const difficultySelector = document.getElementById("difficulty-selector");
   const difficultyBtns = document.querySelectorAll(".difficulty-btn");
@@ -96,18 +111,12 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   );
   const gameView = document.getElementById("game-view");
   const leaderboardView = document.getElementById("leaderboard-view");
-  const winModal = document.getElementById("win-modal");
-  const winTimeEl = document.getElementById("win-time");
-  const winDifficultyEl = document.getElementById("win-difficulty");
-  const playAgainBtn = document.getElementById("play-again-btn");
+
+  const numberPad = document.getElementById("number-pad");
   const numberPadBtns = document.querySelectorAll(".number-btn");
   const eraseBtn = document.getElementById("erase-btn");
-  const alertModal = document.getElementById("alert-modal");
-  const alertTitle = document.getElementById("alert-title");
-  const alertMessage = document.getElementById("alert-message");
-  const alertCloseBtn = document.getElementById("alert-close-btn");
 
-  // Game State
+  //  Game State
   let board, solution, userInput;
   let selectedCell = null;
   let difficulty = "medium";
@@ -117,6 +126,16 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   let scores = [];
   let cellSize, canvasSize;
   let isPaused = false;
+
+  //  Helper: Check if user can interact
+  function isGameInteractive() {
+    return (
+      !isPaused &&
+      !usernameModal.classList.contains("active") &&
+      !winModal.classList.contains("active") &&
+      !alertModal.classList.contains("active")
+    );
+  }
 
   //  Canvas Drawing
   function resizeCanvas() {
@@ -141,9 +160,8 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     for (let i = 0; i <= 9; i++) {
       ctx.beginPath();
       const isThick = i % 3 === 0;
-      // Using even more visible colors and thicker lines for better clarity
       ctx.lineWidth = isThick ? 4 : 2;
-      ctx.strokeStyle = isThick ? "#e2e8f0" : "#64748b"; // slate-200 for thick, slate-500 for thin
+      ctx.strokeStyle = isThick ? "#e2e8f0" : "#64748b";
 
       const pos = Math.round(i * cellSize);
 
@@ -169,10 +187,10 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
         const y = row * cellSize + cellSize / 2;
 
         if (userInput[row][col] !== null) {
-          ctx.fillStyle = userInput[row][col].isError ? "#ef4444" : "#f1f5f9"; // red-500 or slate-100
+          ctx.fillStyle = userInput[row][col].isError ? "#ef4444" : "#f1f5f9";
           ctx.fillText(userInput[row][col].value, x, y);
         } else if (board[row][col] !== null) {
-          ctx.fillStyle = "#22d3ee"; // cyan-400
+          ctx.fillStyle = "#22d3ee";
           ctx.fillText(board[row][col], x, y);
         }
       }
@@ -183,7 +201,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     if (!selectedCell) return;
     const { row, col } = selectedCell;
 
-    ctx.fillStyle = "rgba(71, 85, 105, 0.5)"; // slate-600 with opacity
+    ctx.fillStyle = "rgba(71, 85, 105, 0.5)";
     for (let i = 0; i < 9; i++) {
       ctx.fillRect(i * cellSize, row * cellSize, cellSize, cellSize);
       ctx.fillRect(col * cellSize, i * cellSize, cellSize, cellSize);
@@ -201,10 +219,10 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
       }
     }
 
-    ctx.fillStyle = "rgba(100, 116, 139, 0.7)"; // slate-500 with opacity
+    ctx.fillStyle = "rgba(100, 116, 139, 0.7)";
     ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
 
-    ctx.strokeStyle = "#22d3ee"; // cyan-400
+    ctx.strokeStyle = "#22d3ee";
     ctx.lineWidth = 3;
     ctx.strokeRect(col * cellSize, row * cellSize, cellSize, cellSize);
   }
@@ -216,18 +234,17 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    drawGrid();
-
     if (isPaused) {
-      ctx.fillStyle = "rgba(15, 23, 42, 0.9)"; // slate-900 with high opacity
+      ctx.fillStyle = "#0f172a";
       ctx.fillRect(0, 0, canvasSize, canvasSize);
 
-      ctx.fillStyle = "#22d3ee"; // cyan-400
+      ctx.fillStyle = "#22d3ee";
       ctx.font = "bold 40px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("PAUSED", canvasSize / 2, canvasSize / 2);
     } else {
+      drawGrid();
       drawSelection();
       drawNumbers();
     }
@@ -235,6 +252,12 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
 
   // Game Logic
   function startGame(newDifficulty) {
+    // Ensure user is logged in before generating a board
+    if (!username) {
+      usernameModal.classList.add("active");
+      return;
+    }
+
     difficulty = newDifficulty;
     updateDifficultyButtonsUI();
     ({ puzzle: board, solution } = generateSudoku(difficulty));
@@ -244,13 +267,14 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     selectedCell = null;
     time = 0;
     isPaused = false;
-    pauseBtn.textContent = "Pause";
+    updatePauseButtonState();
     startTimer();
     resizeCanvas();
   }
 
   function handleInput(value) {
-    if (isPaused) return;
+    if (!isGameInteractive()) return;
+
     if (!selectedCell || board[selectedCell.row][selectedCell.col] !== null) {
       return;
     }
@@ -268,7 +292,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   }
 
   function eraseInput() {
-    if (isPaused) return;
+    if (!isGameInteractive()) return;
     if (selectedCell && board[selectedCell.row][selectedCell.col] === null) {
       userInput[selectedCell.row][selectedCell.col] = null;
       redrawCanvas();
@@ -283,7 +307,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     selectedCell = null;
     time = 0;
     isPaused = false;
-    pauseBtn.textContent = "Pause";
+    updatePauseButtonState();
     startTimer();
     redrawCanvas();
   }
@@ -315,20 +339,42 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   }
 
   function togglePause() {
+    if (!board) return; // Don't toggle if game hasn't started
+
     if (isPaused) {
       isPaused = false;
-      pauseBtn.textContent = "Pause";
       startTimer();
-      redrawCanvas();
     } else {
       isPaused = true;
-      pauseBtn.textContent = "Resume";
       stopTimer();
-      redrawCanvas();
+    }
+    updatePauseButtonState();
+    redrawCanvas();
+  }
+
+  function updatePauseButtonState() {
+    if (isPaused) {
+      pauseBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg> Resume`;
+      timerEl.classList.add("opacity-50");
+      numberPad.classList.add("opacity-25", "pointer-events-none");
+      validateBtn.classList.add("opacity-50", "pointer-events-none");
+      hintBtn.classList.add("opacity-50", "pointer-events-none");
+    } else {
+      pauseBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg> Pause`;
+      timerEl.classList.remove("opacity-50");
+      numberPad.classList.remove("opacity-25", "pointer-events-none");
+      validateBtn.classList.remove("opacity-50", "pointer-events-none");
+      hintBtn.classList.remove("opacity-50", "pointer-events-none");
     }
   }
 
-  // Timer
+  //  Timer
   function formatTime(seconds) {
     const min = Math.floor(seconds / 60)
       .toString()
@@ -350,7 +396,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     clearInterval(timerInterval);
   }
 
-  // Local Storage & UI
+  //  Local Storage & UI
   function showAlert(title, message) {
     alertTitle.textContent = title;
     alertMessage.textContent = message;
@@ -442,10 +488,10 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     container.innerHTML = tableHTML;
   }
 
-  // Event Listeners
+  //  Event Listeners
   function handleCanvasInteraction(e) {
     e.preventDefault();
-    if (isPaused) return;
+    if (!isGameInteractive()) return;
 
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -470,7 +516,8 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   });
 
   document.addEventListener("keydown", (e) => {
-    if (isPaused) return;
+    if (!isGameInteractive()) return;
+
     if (!selectedCell) return;
     if (e.key >= "1" && e.key <= "9") {
       handleInput(e.key);
@@ -496,9 +543,20 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     }
   });
 
+  changeUserBtn.addEventListener("click", () => {
+    username = null;
+    localStorage.removeItem("sudokuUsername");
+    stopTimer();
+    gameView.classList.remove("hidden");
+    leaderboardView.classList.add("hidden");
+    usernameModal.classList.add("active");
+    // Force a redraw so the background isn't stuck in a weird state if needed
+    // but modal covers it.
+  });
+
   newGameBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (isPaused) return;
+    if (!isGameInteractive()) return;
     difficultySelector.classList.toggle("hidden");
   });
   document.addEventListener("click", () =>
@@ -515,7 +573,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   });
 
   validateBtn.addEventListener("click", () => {
-    if (isPaused) return;
+    if (!isGameInteractive()) return;
     if (!solution) return;
     let hasError = false;
     for (let r = 0; r < 9; r++) {
@@ -548,7 +606,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   pauseBtn.addEventListener("click", togglePause);
 
   hintBtn.addEventListener("click", async () => {
-    if (isPaused) return;
+    if (!isGameInteractive()) return;
     hintBtn.disabled = true;
     hintBtn.innerHTML = `
             <svg class="animate-spin -ml-1 mr-1 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -583,6 +641,9 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   });
 
   toggleLeaderboardBtn.addEventListener("click", () => {
+    // Block if modal is open
+    if (usernameModal.classList.contains("active")) return;
+
     if (isPaused && gameView.classList.contains("hidden")) {
       setTimeout(redrawCanvas, 0);
     }
@@ -608,6 +669,6 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     alertModal.classList.remove("active");
   });
 
-  // Initialization
+  //  Initialization
   loadUser();
 })();
