@@ -65,7 +65,7 @@ Ensure Node.js is installed, then can run the tests using Jest.
     npm install --save-dev jest
     ```
 
-2.  **Run Tests:**
+2.  **Run Tests:** (sudokuLogic.js is for unit testing purposes)
     ```bash
     npx jest sudokuLogic.test.js
     ```
