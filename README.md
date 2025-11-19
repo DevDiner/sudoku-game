@@ -12,6 +12,8 @@ Sudoku Zen is a classic 9x9 Sudoku game designed for the modern web. Built entir
 - **Solution Validation:** Instantly check your progress and see if you've made any mistakes.
 - **AI-Powered Hints:** Stuck on a tough spot? Get a hint from the Google Gemini API to fill in a correct number.
 - **Responsive Design:** Fully playable on both desktop (keyboard/mouse) and mobile devices (touch/on-screen keypad).
+- **Fair Play Pause:** Pausing the game completely hides the board and disables controls, ensuring players cannot study the puzzle while the timer is stopped.
+
 
 ## How to Play
 
@@ -103,7 +105,7 @@ The goal of Sudoku is to fill the 9x9 grid so that each row, each column, and ea
 ### UI Buttons
 
 -   **New Game:** Starts a new puzzle with the selected difficulty.
--   **Validate:** Checks all your entered numbers against the correct solution. Any incorrect numbers will be temporarily highlighted in red.
+-   **Validate:** Checks all entered numbers against the correct solution. Any incorrect numbers will be temporarily highlighted in red.
 -   **Reset:** Clears all of your input from the current puzzle and restarts the timer.
 -   **Pause/Resume:** Pauses the game timer and hides the board.
 -   **Get Hint:** Fills one randomly chosen empty cell with the correct answer. This button is disabled while a hint is being fetched and will not work unless an API key is configured (see above).
