@@ -63,7 +63,12 @@
                             </div>
                             <button id="validate-btn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors">Validate</button>
                             <button id="reset-btn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors">Reset</button>
-                            <button id="pause-btn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors w-24">Pause</button>
+                            <button id="pause-btn" class="px-4 py-2 bg-amber-700 hover:bg-amber-600 rounded-md transition-colors w-28 flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                </svg>
+                                Pause
+                            </button>
                             <button id="hint-btn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors flex items-center justify-center gap-2">Get Hint</button>
                         </div>
 
@@ -92,7 +97,9 @@
                 </div>
 
                 <footer class="text-center text-slate-500 mt-8">
-                    <p>Welcome, <span id="username-display" class="font-bold text-slate-400"></span></p>
+                    <p>Welcome, <span id="username-display" class="font-bold text-slate-400"></span> 
+                    <button id="change-user-btn" class="text-cyan-500 hover:text-cyan-400 text-sm ml-2 underline cursor-pointer">(Change)</button>
+                    </p>
                 </footer>
             </main>
 
@@ -109,13 +116,13 @@
     </div>
 
     <!-- Modals -->
-    <div id="username-modal" class="modal fixed inset-0 bg-slate-900 bg-opacity-80 items-center justify-center z-50">
+    <div id="username-modal" class="modal fixed inset-0 bg-slate-900 bg-opacity-95 items-center justify-center z-50">
       <div class="bg-slate-800 p-8 rounded-lg shadow-2xl w-full max-w-sm">
         <h2 class="text-2xl font-bold mb-4 text-cyan-400">Welcome to Sudoku Zen</h2>
-        <p class="text-slate-400 mb-6">Please enter a username to track your scores.</p>
+        <p class="text-slate-400 mb-6">Please enter a username to track your scores on the leaderboard.</p>
         <form id="username-form">
           <input type="text" id="username-input" placeholder="Your Username" class="w-full px-4 py-2 rounded-md bg-slate-700 text-white placeholder-slate-500 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500" maxLength="15" />
-          <button type="submit" id="username-submit-btn" class="w-full mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-md text-white font-bold transition-colors duration-200 disabled:bg-slate-600 disabled:cursor-not-allowed" disabled>Play Game</button>
+          <button type="submit" id="username-submit-btn" class="w-full mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-md text-white font-bold transition-colors duration-200 disabled:bg-slate-600 disabled:cursor-not-allowed" disabled>Start Playing</button>
         </form>
       </div>
     </div>
