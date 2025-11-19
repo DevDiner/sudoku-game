@@ -2,10 +2,14 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { generateSudoku, SIZE } from "./sudokuLogic.js";
 
 (function () {
-  //  Gemini Hint Service
+  // --- Gemini Hint Service ---
   let ai;
   try {
-    const apiKey = import.meta.env.VITE_API_KEY;
+    // Safely check for VITE_API_KEY. import.meta.env is undefined in standard browsers.
+    const apiKey =
+      import.meta.env && import.meta.env.VITE_API_KEY
+        ? import.meta.env.VITE_API_KEY
+        : null;
     if (apiKey) {
       ai = new GoogleGenAI({ apiKey: apiKey });
     } else {
@@ -74,7 +78,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     }
   }
 
-  //  DOM Elements
+  // --- DOM Elements ---
   const canvas = document.getElementById("sudoku-canvas");
   const ctx = canvas.getContext("2d");
   const canvasContainer = document.getElementById("canvas-container");
@@ -116,7 +120,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   const numberPadBtns = document.querySelectorAll(".number-btn");
   const eraseBtn = document.getElementById("erase-btn");
 
-  //  Game State
+  // --- Game State ---
   let board, solution, userInput;
   let selectedCell = null;
   let difficulty = "medium";
@@ -127,7 +131,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
   let cellSize, canvasSize;
   let isPaused = false;
 
-  //  Helper: Check if user can interact
+  // --- Helper: Check if user can interact ---
   function isGameInteractive() {
     return (
       !isPaused &&
@@ -137,7 +141,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     );
   }
 
-  //  Canvas Drawing
+  // --- Canvas Drawing ---
   function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
     const rect = canvasContainer.getBoundingClientRect();
@@ -250,7 +254,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     }
   }
 
-  // Game Logic
+  // --- Game Logic ---
   function startGame(newDifficulty) {
     // Ensure user is logged in before generating a board
     if (!username) {
@@ -374,7 +378,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     }
   }
 
-  //  Timer
+  // --- Timer ---
   function formatTime(seconds) {
     const min = Math.floor(seconds / 60)
       .toString()
@@ -396,7 +400,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     clearInterval(timerInterval);
   }
 
-  //  Local Storage & UI
+  // --- Local Storage & UI ---
   function showAlert(title, message) {
     alertTitle.textContent = title;
     alertMessage.textContent = message;
@@ -488,7 +492,7 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     container.innerHTML = tableHTML;
   }
 
-  //  Event Listeners
+  // --- Event Listeners ---
   function handleCanvasInteraction(e) {
     e.preventDefault();
     if (!isGameInteractive()) return;
@@ -669,6 +673,6 @@ import { generateSudoku, SIZE } from "./sudokuLogic.js";
     alertModal.classList.remove("active");
   });
 
-  //  Initialization
+  // --- Initialization ---
   loadUser();
 })();
